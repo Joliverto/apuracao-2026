@@ -134,6 +134,7 @@ let prevPct = {};          // chave região|cand -> pct da rodada anterior com m
 let lastPct = {};
 let lastStamp = "";
 let countdown = INTERVAL, busy = false;
+const abertos = new Set(); // regiões com "Ver por estado" aberto (só nesta visita)
 
 const $ = id => document.getElementById(id);
 const num = s => Number(String(s ?? "0").replace(",", ".")) || 0;
@@ -236,7 +237,7 @@ function render() {
       <div class="card-h"><div><h2>${r.nome}</h2><div class="ufs">${r.ufs.map(u => u.toUpperCase()).join(" · ")}</div></div>${pill(b.lider, t)}</div>
       ${b.html}${blocoMeta(t)}
       ${falta ? `<div class="err-msg">${falta} UF(s) sem resposta nesta rodada.</div>` : ""}
-      <details><summary>Ver por estado</summary><div class="tbl"><table>
+      <details data-regiao="${r.nome}"${abertos.has(r.nome) ? " open" : ""}><summary>Ver por estado</summary><div class="tbl"><table>
         <thead><tr><th>UF</th>${cab}<th>Apurado</th></tr></thead><tbody>${rows}</tbody></table></div></details>
     </article>`;
   }).join("");
@@ -274,6 +275,11 @@ setInterval(() => {
   if (countdown <= 0) atualizar();
 }, 1000);
 $("btn").addEventListener("click", atualizar);
+// "toggle" não borbulha; a captura pega o de qualquer <details> do grid
+$("grid").addEventListener("toggle", e => {
+  const r = e.target.dataset?.regiao; if (!r) return;
+  e.target.open ? abertos.add(r) : abertos.delete(r);
+}, true);
 
 function aplicarTema(t) {
   const root = document.documentElement;
