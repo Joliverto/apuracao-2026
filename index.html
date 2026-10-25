@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apuração por Região</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: faixa nacional no topo, depois um card por região em grade; tabela de UFs recolhível em cada card */
+:root{
+  --bg:#f3f5f4; --panel:#ffffff; --fg:#14201c; --muted:#5d6b66; --line:#d9e0dd;
+  --accent:#0b6e4f; --track:#e4e9e7; --warn:#a15c00; --bad:#b3261e;
+  --c13:#c8102e; --c22:#1d4f9c; --cx:#7a6a2e;
+  --display:"Archivo",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1513; --panel:#17201d; --fg:#e6ece9; --muted:#93a19c; --line:#2a3632;
+  --accent:#3fbf8f; --track:#24302c; --warn:#e3a33b; --bad:#ff7a70;
+  --c13:#ff5a6e; --c22:#6f9cf0; --cx:#d0bb6a; color-scheme:dark }}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--display);
+  padding:24px max(16px,env(safe-area-inset-left,0px)) 48px max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{margin:0;font-size:clamp(22px,3.4vw,32px);font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px}
+.status{font:500 12px var(--mono);color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--accent);display:inline-block}
+.dot.busy{animation:pulse 1s infinite}.dot.err{background:var(--bad)}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.dot.busy{animation:none}}
+button{font:600 12px var(--display);background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)} button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:grid;gap:12px;min-width:0}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card-h h2{margin:0;font-size:19px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.ufs{font:500 11px var(--mono);color:var(--muted);letter-spacing:.06em}
+.lead{font:600 12px var(--display);padding:3px 8px;border-radius:999px;color:#fff;white-space:nowrap}
+.cands{display:grid;gap:8px}
+.cand{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.cand .nm{font-weight:600;font-size:14px}
+.cand .pc{font:800 24px var(--display);font-variant-numeric:tabular-nums}
+.cand .vt{grid-column:1/-1;font:400 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.delta{font:500 11px var(--mono);margin-left:6px}
+.bar{display:flex;height:12px;border-radius:3px;overflow:hidden;background:var(--track)}
+.bar span{display:block;height:100%;transition:width .6s}
+.mid{position:relative}.mid::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;border-left:1px dashed var(--muted)}
+.meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.meta div{display:grid;gap:1px}
+.meta b{font:500 15px var(--mono);font-variant-numeric:tabular-nums}
+.meta small{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.apur{display:grid;gap:6px;border-top:1px solid var(--line);padding-top:10px}
+.apur-row{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.apur-row div{display:grid}.apur-row .r{text-align:right}
+.apur-row small{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.apur-row b{font:800 22px var(--display);font-variant-numeric:tabular-nums}
+.apur .ok{color:var(--accent)}.apur .falta{color:var(--warn)}
+.prog2{height:10px;background:repeating-linear-gradient(45deg,var(--track) 0 6px,transparent 6px 10px),var(--track);border-radius:3px;overflow:hidden}
+.prog2 i{display:block;height:100%;background:var(--accent);transition:width .6s}
+.secs{font:400 12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+details summary{cursor:pointer;font-size:12px;color:var(--muted)}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font:400 12px var(--mono);font-variant-numeric:tabular-nums;margin-top:6px}
+th,td{padding:4px 6px;text-align:right;border-bottom:1px solid var(--line)} th:first-child,td:first-child{text-align:left}
+th{font-weight:500;color:var(--muted)}
+.err-msg{color:var(--bad);font-size:12px}
+footer{color:var(--muted);font-size:12px}
+footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Apuração por Região · Presidente 2º turno</h1>
+      <div class="sub">Eleição 2026 · dados oficiais do TSE somados por região geográfica</div>
+    </div>
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="st">Carregando…</span>
+      <span id="cd"></span>
+      <button id="btn" type="button">Atualizar agora</button>
+    </div>
+  </header>
+
+  <section class="nat" id="nat"></section>
+  <section class="grid" id="grid"></section>
+
+  <footer>
+    Fonte: <a href="https://resultados.tse.jus.br/oficial/app/index.html#/eleicao/6258/uf/br/cargo/1/vis/nominal/rguf/zz/resumo-geral" target="_blank" rel="noopener">resultados.tse.jus.br</a>.
+    Percentual de cada candidato = votos dele ÷ votos válidos das UFs da região. "Urnas apuradas" = seções totalizadas ÷ seções da região.
+    Variação (pp) comparada à atualização anterior em que os dados mudaram.
+  </footer>
+</div>
+
+<script>
+const BASE = "https://resultados.tse.jus.br/oficial/ele2026/6258/dados";
+const INTERVAL = 5;
+const REGIOES = [
+  { nome: "Norte",        ufs: ["ac","am","ap","pa","ro","rr","to"] },
+  { nome: "Nordeste",     ufs: ["al","ba","ce","ma","pb","pe","pi","rn","se"] },
+  { nome: "Centro-Oeste", ufs: ["df","go","ms","mt"] },
+  { nome: "Sudeste",      ufs: ["es","mg","rj","sp"] },
+  { nome: "Sul",          ufs: ["pr","rs","sc"] },
+  { nome: "Exterior",     ufs: ["zz"] },
+];
+const TODAS = REGIOES.flatMap(r => r.ufs);
+
+const cache = {};          // uf -> último JSON bom
+let prevPct = {};          // chave região|cand -> pct da rodada anterior com mudança
+let lastPct = {};
+let lastStamp = "";
+let countdown = INTERVAL, busy = false;
+
+const $ = id => document.getElementById(id);
+const num = s => Number(String(s ?? "0").replace(",", ".")) || 0;
+const fmt = n => n.toLocaleString("pt-BR");
+const pct = (a, b) => b ? (a / b * 100) : 0;
+const fp = (x, d = 2) => x.toLocaleString("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const cor = n => n === "13" ? "var(--c13)" : n === "22" ? "var(--c22)" : "var(--cx)";
+
+function candidatos(j) {
+  const out = [];
+  for (const a of j?.carg?.[0]?.agr ?? [])
+    for (const p of a.par ?? [])
+      for (const c of p.cand ?? [])
+        out.push({ n: c.n, nm: c.nmu || c.nm, v: num(c.vap) });
+  return out;
+}
+
+function somar(ufs, fonte) {
+  const t = { cands: {}, vv: 0, tv: 0, brancos: 0, nulos: 0, te: 0, comp: 0, abst: 0, ts: 0, st: 0, ufsOk: 0, linhas: [] };
+  for (const uf of ufs) {
+    const j = fonte[uf]; if (!j) continue;
+    t.ufsOk++;
+    const v = j.v || {}, e = j.e || {}, s = j.s || {};
+    t.vv += num(v.vv); t.tv += num(v.tv); t.brancos += num(v.vb); t.nulos += num(v.tvn);
+    t.te += num(e.te); t.comp += num(e.c); t.abst += num(e.a);
+    t.ts += num(s.ts); t.st += num(s.st);
+    const cs = candidatos(j);
+    for (const c of cs) {
+      t.cands[c.n] ??= { n: c.n, nm: c.nm, v: 0 };
+      t.cands[c.n].v += c.v;
+    }
+    t.linhas.push({ uf: uf.toUpperCase(), cs, vv: num(v.vv), pst: num(s.pstn), hora: j.ht });
+  }
+  t.lista = Object.values(t.cands).sort((a, b) => a.n.localeCompare(b.n));
+  return t;
+}
+
+function blocoCands(chave, t) {
+  const ordem = [...t.lista].sort((a, b) => b.v - a.v);
+  const lider = ordem[0];
+  const linhas = t.lista.map(c => {
+    const p = pct(c.v, t.vv);
+    lastPct[chave + "|" + c.n] = p;
+    const ant = prevPct[chave + "|" + c.n];
+    let d = "";
+    if (ant !== undefined && Math.abs(p - ant) >= 0.005) {
+      const s = p - ant;
+      d = `<span class="delta" style="color:${s > 0 ? "var(--accent)" : "var(--bad)"}">${s > 0 ? "▲" : "▼"} ${fp(Math.abs(s))} pp</span>`;
+    }
+    return `<div class="cand">
+      <span class="nm" style="color:${cor(c.n)}">${esc(c.nm)} <span class="ufs">${c.n}</span></span>
+      <span class="pc">${fp(p)}%</span>
+      <span class="vt">${fmt(c.v)} votos${d}</span></div>`;
+  }).join("");
+  const barra = t.lista.map(c => `<span style="width:${pct(c.v, t.vv)}%;background:${cor(c.n)}"></span>`).join("");
+  return { html: `<div class="cands">${linhas}</div><div class="mid"><div class="bar">${barra}</div></div>`, lider };
+}
+
+function blocoMeta(t) {
+  const ap = pct(t.st, t.ts);
+  return `<div class="apur">
+    <div class="apur-row">
+      <div><small>Apurado</small><b class="ok">${fp(ap)}%</b></div>
+      <div class="r"><small>Falta apurar</small><b class="falta">${fp(100 - ap)}%</b></div>
+    </div>
+    <div class="prog2"><i style="width:${ap}%"></i></div>
+    <div class="secs">${fmt(t.st)} de ${fmt(t.ts)} urnas · faltam ${fmt(t.ts - t.st)}</div>
+  </div>
+  <div class="meta">
+    <div><b>${fmt(t.tv)}</b><small>Votos apurados</small></div>
+    <div><b>${fmt(t.vv)}</b><small>Votos válidos</small></div>
+    <div><b>${fp(pct(t.abst, t.comp + t.abst))}%</b><small>Abstenção</small></div>
+  </div>`;
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+function render() {
+  lastPct = {};
+  // Nacional
+  const br = cache.br ? somar(["br"], cache) : somar(TODAS, cache);
+  const nb = blocoCands("BR", br);
+  $("nat").innerHTML = `<div class="card-h"><h2>Brasil</h2>${pill(nb.lider, br)}</div>${nb.html}${blocoMeta(br)}`;
+
+  // Regiões
+  $("grid").innerHTML = REGIOES.map(r => {
+    const t = somar(r.ufs, cache);
+    if (!t.ufsOk) return `<article class="card"><div class="card-h"><h2>${r.nome}</h2></div><div class="err-msg">Sem dados ainda.</div></article>`;
+    const b = blocoCands(r.nome, t);
+    const cab = t.lista.map(c => `<th>${esc(c.nm.split(" ")[0])}</th>`).join("");
+    const rows = t.linhas.map(l => {
+      const tds = t.lista.map(c => {
+        const x = l.cs.find(k => k.n === c.n);
+        return `<td>${fp(pct(x ? x.v : 0, l.vv))}%</td>`;
+      }).join("");
+      return `<tr><td>${l.uf}</td>${tds}<td>${fp(l.pst)}%</td></tr>`;
+    }).join("");
+    const falta = r.ufs.length - t.ufsOk;
+    return `<article class="card">
+      <div class="card-h"><div><h2>${r.nome}</h2><div class="ufs">${r.ufs.map(u => u.toUpperCase()).join(" · ")}</div></div>${pill(b.lider, t)}</div>
+      ${b.html}${blocoMeta(t)}
+      ${falta ? `<div class="err-msg">${falta} UF(s) sem resposta nesta rodada.</div>` : ""}
+      <details><summary>Ver por estado</summary><div class="tbl"><table>
+        <thead><tr><th>UF</th>${cab}<th>Apurado</th></tr></thead><tbody>${rows}</tbody></table></div></details>
+    </article>`;
+  }).join("");
+}
+
+function pill(lider, t) {
+  if (!lider || !t.vv) return "";
+  return `<span class="lead" style="background:${cor(lider.n)}">${esc(lider.nm)} lidera</span>`;
+}
+
+async function buscar(uf) {
+  const r = await fetch(`${BASE}/${uf}/${uf}-c0001-e006258-u.json`, { cache: "no-cache" });
+  if (!r.ok) throw new Error(uf + " HTTP " + r.status);
+  cache[uf] = await r.json();
+}
+
+async function atualizar() {
+  if (busy) return;
+  busy = true; $("dot").className = "dot busy";
+  const res = await Promise.allSettled(["br", ...TODAS].map(buscar));
+  const falhas = res.filter(x => x.status === "rejected").length;
+  const stamp = cache.br ? `${cache.br.dg} ${cache.br.hg}` : "";
+  if (stamp !== lastStamp && lastStamp) prevPct = { ...lastPct };
+  render();
+  lastStamp = stamp || lastStamp;
+  const agora = new Date().toLocaleTimeString("pt-BR");
+  $("st").textContent = `TSE: ${stamp || "—"} · consultado às ${agora}` + (falhas ? ` · ${falhas} falha(s)` : "");
+  $("dot").className = falhas === res.length ? "dot err" : "dot";
+  busy = false; countdown = INTERVAL;
+}
+
+setInterval(() => {
+  countdown--;
+  $("cd").textContent = `próxima em ${Math.max(countdown, 0)} s`;
+  if (countdown <= 0) atualizar();
+}, 1000);
+$("btn").addEventListener("click", atualizar);
+atualizar();
+</script>
+</body>
+</html>
