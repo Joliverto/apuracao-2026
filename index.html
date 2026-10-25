@@ -7,7 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <script>
-try { const t = localStorage.getItem("tema"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}
+// Tema padrão: claro. "auto" (Sistema) só quando o visitante escolhe.
+let temaSalvo = "light";
+try { temaSalvo = localStorage.getItem("tema") || "light"; } catch (e) {}
+if (temaSalvo !== "auto") document.documentElement.dataset.theme = temaSalvo === "dark" ? "dark" : "light";
 </script>
 <style>
 /* Layout: faixa nacional no topo, depois um card por região em grade; tabela de UFs recolhível em cada card */
@@ -275,11 +278,12 @@ $("btn").addEventListener("click", atualizar);
 function aplicarTema(t) {
   const root = document.documentElement;
   if (t === "light" || t === "dark") root.dataset.theme = t; else delete root.dataset.theme;
-  try { t === "auto" ? localStorage.removeItem("tema") : localStorage.setItem("tema", t); } catch (e) {}
+  try { localStorage.setItem("tema", t); } catch (e) {}
   document.querySelectorAll(".theme button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.tema === t)));
 }
 document.querySelectorAll(".theme button").forEach(b => b.addEventListener("click", () => aplicarTema(b.dataset.tema)));
 aplicarTema(document.documentElement.dataset.theme || "auto");
+
 atualizar();
 </script>
 </body>
